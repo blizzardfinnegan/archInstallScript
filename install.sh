@@ -80,8 +80,8 @@ timedatectl set-ntp true
 ### -----------------------
 echo Do you want to use the default disk partition scheme?
 echo Default partition scheme:
-echo - 512MB FAT32 boot partition  \(Boot partition must be in FAT32\)
-echo - the remaining space of the drive \(File system type will be set later \)
+echo '- 512MB FAT32 boot partition  (Boot partition must be in FAT32)'
+echo '- the remaining space of the drive File system type will be set later )'
 read -p 'If you are unsure what this means, say yes (Y/n): ' defaultPartition
 if ["$defaultPartition" == "n" -o "$defaultPartition" == "N"]
 then
