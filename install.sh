@@ -20,23 +20,23 @@ read -p 'Enter your desired hostname: ' hostname
 read -p 'Enter your desired default username: ' user1
 if ["$user1" == 'root']
 then
-    while["$user1" == 'root']
-    do
+    while[ "$user1" == 'root' ]
+    do$'\r'
         echo 'The default user cannot be root.'
         read -p 'Enter your desired default username: ' user1
-    done
+    done$'\r'
 fi
 
 read -sp 'Enter your desired password: ' pass1
 read -sp 'Confirm your desired password: ' confirmPass1
 if ["$pass1" == "$confirmPass1"]
 then
-    while["$pass1" == "$confirmPass1"]
-    do
+    while[ "$pass1" == "$confirmPass1" ]
+    do$'\r'
         echo 'Entered passwords do not match.'
         read -sp 'Enter your desired password: ' pass1
         read -sp 'Confirm your desired password: ' confirmPass1
-    done
+    done$'\r'
 fi
 
 ### -----------------------
@@ -48,7 +48,7 @@ if ["$qwertyness" == "y" -o "$qwertyness" == "Y"]
 then
     keymapSet=0
     while [keymapSet -eq 0]
-    do
+    do$'\r'
         echo Enter the two-letter code for the language of your keyboard. 
         read -p '(If English, enter the keyboard style you will use [i.e. dvorak]): ' keymapSearch
         localectl list-keymaps | grep -i $keymapSearch
@@ -58,10 +58,10 @@ then
             loadkeys $keymap
             keymapSet=1
         fi
-    done
-else
+    done$'\r'
+else$'\r'
     loadkeys us
-fi
+fi$'\r'
 
 ### -----------------------
 #   Boot Mode Verification
@@ -128,6 +128,17 @@ fi
 ### -----------------------
 #   Format Partitions
 ### -----------------------
+#   Because of the complexity of manually encrypting data, this is not currently supported. It may get implemented in the future.
+
+echo Currently supported root file systems:
+read -p '(b)trfs/(E)xt4' fileSystem
+if [ "$fileSystem" == 'b' -o "$fileSystem" == 'B' ]
+then
+    mkfs.btrfs -L "Root Drive" /dev/$drivePart1
+elif [ "$filesystem" == 'e' -o "$filesystem" == 'E' ]
+then
+    mkfs.ext4 /dev/$drivePart1
+fi
 
 ### -----------------------
 #   Mount File Systems
