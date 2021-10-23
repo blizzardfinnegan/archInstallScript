@@ -14,6 +14,10 @@ languageLocale="LANG=en_US.UTF-8"
 countryLocation="United States"
 keymapDefault="KEYMAP=us"
 
+## Ensure Reflector is installed for later
+pacman -Syy
+pacman -S reflector
+
 #This is info we will need for the rest of the script, may as well collect it early
 read -p 'Enter your desired hostname: ' hostname
 
@@ -86,7 +90,10 @@ read -p 'If you are unsure what this means, say yes (Y/n): ' defaultPartition
 if ["$defaultPartition" == "n" -o "$defaultPartition" == "N"]
 then
     echo From here, I assume you know what you are doing.
-    echo I will temporarily drop you back into the shell. When you are done partitioning, exit the shell to continue.
+    echo For this script to work properly, you will need to manually
+    echo partition the drives, as well as format the partitions 
+    echo and mount the drives.
+    echo When you are done, exit the shell to continue.
     bash
 else
     lsblk | grep -v '-' | grep -v 'rom'| awk -v OFS='\t' '{pring $1, $4}'
@@ -97,7 +104,8 @@ else
     # The awk command only prints the first and 4th columns (name and size). 
     #   The -v OFS changes the Output Field Separator to be "\t", the escape character for Tab
     read -p 'Enter a drive to be partitioned.' drivePart1
-    fdisk /dev/$drivePart1 -W always<<EOF
+    drivePart1=/dev/$drivePart1
+    fdisk $drivePart1 -W always<<EOF
 g
 n
 1
@@ -115,7 +123,6 @@ t
 23
 w
 EOF
-fi
 ## Explanation of fdisk commands:
 # --------------------------------
 # g creates a GPT partition table
@@ -124,6 +131,10 @@ fi
 # the first t, and following digits, labels the first partition as a boot partition.
 # The second t, and the following digits, labels the second partition as a Linux root partition
 # The w writes out the changes in memory to the disk.
+
+## Internal variable shifting
+bootPartition=${drivePart1}1
+rootDrivePart=${drivePart1}2
 
 ### -----------------------
 #   Format Partitions
@@ -134,27 +145,53 @@ echo Currently supported root file systems:
 read -p '(b)trfs/(E)xt4' fileSystem
 if [ "$fileSystem" == 'b' -o "$fileSystem" == 'B' ]
 then
-    mkfs.btrfs -L "Root Drive" /dev/$drivePart1
+    mkfs.btrfs -L "Root Drive" $rootDrivePart
 elif [ "$filesystem" == 'e' -o "$filesystem" == 'E' ]
 then
-    mkfs.ext4 /dev/$drivePart1
+    mkfs.ext4 $rootDrivePart
 fi
 
 ### -----------------------
 #   Mount File Systems
 ### -----------------------
-
+mkdir /mnt/boot
+mount $rootDrivePart /mnt
+mount $bootPartition /mnt/boot
+fi
 ### -----------------------
 #   Set Mirrors
 ### -----------------------
+reflector -c $countryLocation -p https -f 10 --sort rate --save /etc/pacman.d/mirrorlist
+pacman -Syy
 
 ### -----------------------
 #   Install packages
 ### -----------------------
+echo What version of the kernel would you like to use?
+echo "- linux: This is the most up to date version of the kernel."
+echo "- linux-lts: This is the long-term-service kernel."
+echo "- linux-hardened: This is a security focused linux kernel."
+echo "- linux-zen: This is a kernel that is slightly slower to update than the stable version, but has some creature comforts."
+echo "(Note: If you enter an invalid character, this will default to LTS, for safety.)"
+read -p '(l)inux/linux-l(T)s/linux-(h)ardened/linux-(z)en: ' kernelVersionShort
+if [ "$kernelVersionShort" == 'l' -o "$kernelVersionShort" == 'L' ]
+then
+    kernelVersion=linux
+elif [ "$kernelVersionShort" == 'h' -o "$kernelVersionShort" == 'H' ]
+then
+    kernelVersion=linux-hardened
+elif [ "$kernelVersionShort" == 'z' -o "$kernelVersionShort" == 'Z' ]
+then
+    kernelVersion=linux-zen
+else
+    kernelVersion=linux-lts
+fi
+pacstrap /mnt base $kernelVersion ${kernelVersion}-firmware ${kernelVersion}-docs btrfs-progs iwd vim sed git man man-db man-pages texinfo bash zsh nano
 
 ### -----------------------
 #   Configure fstab
 ### -----------------------
+
 
 ### -----------------------
 #   Set Timezone
@@ -195,4 +232,4 @@ fi
 ### -----------------------
 #   Yay Installation
 ### -----------------------
-
+exit 0
