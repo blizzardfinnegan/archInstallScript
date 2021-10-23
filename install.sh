@@ -15,10 +15,25 @@ countryLocation="United States"
 keymapDefault="KEYMAP=us"
 
 ## Ensure Reflector is installed for later
-pacman -Syy
-pacman -S reflector
+# The following lines is temporarily commented out, as this script is being developed on Debian
+#pacman -Syy
+#pacman -S reflector
 
 #This is info we will need for the rest of the script, may as well collect it early
+echo 'What is your timezone offset?'
+read -p 'Please enter either "+n" or "-n", where n is a number: ' timezoneOffset
+timezoneOffset=GMT$timezoneOffset
+
+echo 'Are you using an AMD or Intel processor?'
+read -p '(a)MD/(i)ntel: ' processorType
+if [ "$processorType" == 'a' -o "$processorType" == 'A' ]
+then
+    microcode=amd-ucode
+elif [ "$processorType" == 'i' -o "$processorType" == 'I' ]
+then
+    microcode=intel-ucode
+fi
+
 read -p 'Enter your desired hostname: ' hostname
 
 read -p 'Enter your desired default username: ' user1
@@ -43,6 +58,17 @@ then
     done$'\r'
 fi
 
+read -sp 'Enter your desired ROOT password: ' rootPass
+read -sp 'Confirm your desired ROOT password: ' confirmRootPass
+if ["$rootPass" == "$confirmRootPass"]
+then
+    while[ "$rootPass" == "$confirmRootPass" ]
+    do$'\r'
+        echo 'Entered passwords do not match.'
+        read -sp 'Enter your desired ROOT password: ' rootPass         
+        read -sp 'Confirm your desired ROOT password: ' confirmRootPass
+    done$'\r'
+fi
 ### -----------------------
 #   Set Keyboard Layout
 ### -----------------------
@@ -186,44 +212,78 @@ then
 else
     kernelVersion=linux-lts
 fi
-pacstrap /mnt base $kernelVersion ${kernelVersion}-firmware ${kernelVersion}-docs btrfs-progs iwd vim sed git man man-db man-pages texinfo bash zsh nano
+pacstrap /mnt base $kernelVersion ${kernelVersion}-firmware ${kernelVersion}-docs btrfs-progs iwd vim sed git man man-db man-pages texinfo bash zsh nano $microcode
 
 ### -----------------------
-#   Configure fstab
+#   Generate fstab
 ### -----------------------
-
+genfstab -U /mnt >> mnt/etc/fstab
 
 ### -----------------------
 #   Set Timezone
 ### -----------------------
+## The ArchWiki has all following commands withi a chroot environment.
+## However, you can't do this with a script, so every command is individually chroot-ed.
 
+#Set local timezone, sync to hardware clock
+#Make sure the hardware clock is UTC
+arch-chroot /mnt ln -sf /usr/share/zoneinfo/Etc/$timezoneOffset /etc/localtime
+arch-chroot /mnt hwclock --systohc
 ### -----------------------
 #   Localization
 ### -----------------------
+arch-chroot /mnt locale-gen
+echo $languageLocale > /mnt/etc/locale.conf 
+echo $keymapDefault > /mnt/etc/vconsole.conf
 
 ### -----------------------
 #   Network Configuration
 ### -----------------------
+#Set new hostname
+echo $hostname > /mnt/etc/hostname
 
-### -----------------------
-#   Initramfs
-### -----------------------
+#Set networking defaults
+cat >> /mnt/etc/hosts <<EOF
+127.0.0.1   localhost
+::1         localhost
+127.0.1.1   $hostname.localdomain   $hostname
+EOF
+
+echo I will drop you back into a shell so that you can reconfigure your networking preferences.
+echo Once this is done \( or, if you are using ethernet, and it is already working\), exit the shell
+echo to continue the script.
+arch-chroot /mnt
 
 ### -----------------------
 #   Set Root Password
 ### -----------------------
+echo "${rootPass}\n${rootPass}" | arch-chroot /mnt passwd root
+
+### -----------------------
+#   Bootloader
+### -----------------------
+# Install grub
+arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB
 
 ### -----------------------
 #   Create User
 ### -----------------------
+#Create user
+arch-chroot /mnt useradd -m -G wheel $user1
+
+# Add password
+arch-chroot /mnt echo "${pass1}\n${pass1}" | passwd $user1
 
 ### -----------------------
 #   Enable Sudo
 ### -----------------------
+sed -i "/^# %wheel ALL=(ALL) ALL/ c%wheel ALL=(ALL) ALL" /mnt/etc/sudoers
 
 ### -----------------------
 #   Pacman Config
 ### -----------------------
+#Turn on colors in Pacman
+sed -i "/^#Color/ cColor" /mnt/etc/pacman.conf
 
 ### -----------------------
 #   Repository Config
