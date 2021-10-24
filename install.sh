@@ -34,6 +34,23 @@ then
     microcode=intel-ucode
 fi
 
+read -p 'Are you using a graphics card? (y/N): ' iGPU
+if [ "$iGPU" == 'y' -o "$iGPU" == 'Y' ]
+then
+    read -p 'Are you using an AMD or NVidia graphics card? (a/n): ' dGPU
+    if [ "$dGPU" == 'a' -o "$dGPU" == 'A' ]
+    then
+        graphicsDriver=mesa lib-32mesa mesa-vdpau lib32-mesa-vdpau
+    elif [ "$dGPU" == 'n' -o "$dGPU" == 'N' ]
+    then
+        graphicsDriver=nvidia lib31-nvidia-utils
+    else
+        graphicsDriver=mesa lib32-mesa
+    fi
+else
+    graphicsDriver=mesa lib32-mesa
+fi
+
 read -p 'Enter your desired hostname: ' hostname
 
 read -p 'Enter your desired default username: ' user1
@@ -45,7 +62,7 @@ then
         read -p 'Enter your desired default username: ' user1
     done$'\r'
 fi
-
+'
 read -sp 'Enter your desired password: ' pass1
 read -sp 'Confirm your desired password: ' confirmPass1
 if ["$pass1" == "$confirmPass1"]
@@ -81,11 +98,11 @@ then
     do$'\r'
         echo Enter the two-letter code for the language of your keyboard. 
         read -p '(If English, enter the keyboard style you will use [i.e. dvorak]): ' keymapSearch
-        localectl list-keymaps | grep -i $keymapSearch
+        localectl list-keymaps | grep -i "$keymapSearch"
         read -p 'Enter the correct code for your keyboard, or if not available, leave blank to search again: ' keymap
         if [-n "$keymap"]
         then
-            loadkeys $keymap
+            loadkeys "$keymap"
             keymapSet=1
         fi
     done$'\r'
@@ -130,8 +147,8 @@ else
     # The awk command only prints the first and 4th columns (name and size). 
     #   The -v OFS changes the Output Field Separator to be "\t", the escape character for Tab
     read -p 'Enter a drive to be partitioned.' drivePart1
-    drivePart1=/dev/$drivePart1
-    fdisk $drivePart1 -W always<<EOF
+    drivePart1=/dev/"$drivePart1"
+    fdisk "$drivePart1" -W always<<EOF
 g
 n
 1
@@ -159,8 +176,8 @@ EOF
 # The w writes out the changes in memory to the disk.
 
 ## Internal variable shifting
-bootPartition=${drivePart1}1
-rootDrivePart=${drivePart1}2
+bootPartition="${drivePart1}"1
+rootDrivePart="${drivePart1}"2
 
 ### -----------------------
 #   Format Partitions
@@ -171,23 +188,23 @@ echo Currently supported root file systems:
 read -p '(b)trfs/(E)xt4' fileSystem
 if [ "$fileSystem" == 'b' -o "$fileSystem" == 'B' ]
 then
-    mkfs.btrfs -L "Root Drive" $rootDrivePart
+    mkfs.btrfs -L "Root Drive" "$rootDrivePart"
 elif [ "$filesystem" == 'e' -o "$filesystem" == 'E' ]
 then
-    mkfs.ext4 $rootDrivePart
+    mkfs.ext4 "$rootDrivePart"
 fi
 
 ### -----------------------
 #   Mount File Systems
 ### -----------------------
 mkdir /mnt/boot
-mount $rootDrivePart /mnt
-mount $bootPartition /mnt/boot
+mount "$rootDrivePart" /mnt
+mount "$bootPartition" /mnt/boot
 fi
 ### -----------------------
 #   Set Mirrors
 ### -----------------------
-reflector -c $countryLocation -p https -f 10 --sort rate --save /etc/pacman.d/mirrorlist
+reflector -c "$countryLocation" -p https -f 10 --sort rate --save /etc/pacman.d/mirrorlist
 pacman -Syy
 
 ### -----------------------
@@ -212,7 +229,7 @@ then
 else
     kernelVersion=linux-lts
 fi
-pacstrap /mnt base $kernelVersion ${kernelVersion}-firmware ${kernelVersion}-docs btrfs-progs iwd vim sed git man man-db man-pages texinfo bash zsh nano $microcode
+pacstrap /mnt base "$kernelVersion" "${kernelVersion}"-firmware "${kernelVersion}"-docs btrfs-progs networkmanager vim sed git man man-db man-pages texinfo bash zsh nano "$microcode" reflector
 
 ### -----------------------
 #   Generate fstab
@@ -227,20 +244,20 @@ genfstab -U /mnt >> mnt/etc/fstab
 
 #Set local timezone, sync to hardware clock
 #Make sure the hardware clock is UTC
-arch-chroot /mnt ln -sf /usr/share/zoneinfo/Etc/$timezoneOffset /etc/localtime
+arch-chroot /mnt ln -sf /usr/share/zoneinfo/Etc/"$timezoneOffset" /etc/localtime
 arch-chroot /mnt hwclock --systohc
 ### -----------------------
 #   Localization
 ### -----------------------
 arch-chroot /mnt locale-gen
-echo $languageLocale > /mnt/etc/locale.conf 
-echo $keymapDefault > /mnt/etc/vconsole.conf
+echo "$languageLocale" > /mnt/etc/locale.conf 
+echo "$keymapDefault" > /mnt/etc/vconsole.conf
 
 ### -----------------------
 #   Network Configuration
 ### -----------------------
 #Set new hostname
-echo $hostname > /mnt/etc/hostname
+echo "$hostname" > /mnt/etc/hostname
 
 #Set networking defaults
 cat >> /mnt/etc/hosts <<EOF
@@ -285,11 +302,44 @@ sed -i "/^# %wheel ALL=(ALL) ALL/ c%wheel ALL=(ALL) ALL" /mnt/etc/sudoers
 #Turn on colors in Pacman
 sed -i "/^#Color/ cColor" /mnt/etc/pacman.conf
 
-### -----------------------
-#   Repository Config
-### -----------------------
+#Allow use of the multilib repo
+sed -i "/^#\[multilib\]\n#Include/ c\[multilib\]\nInclude" /mnt/etc/pacman.conf
+
+#Update Mirrorlist
+arch-chroot /mnt reflector -c "$countryLocation" -p https -f 10 --sort rate --save /etc/pacman.d/mirrorlist
+
+#Update mirrors
+arch-chroot /mnt pacman -Sy
 
 ### -----------------------
 #   Yay Installation
 ### -----------------------
+
+curl https://aur.archlinux.org/cgit/aur.git/snapshot/yay.tar.gz -o /mnt/home/"$user1"/yay.tar.gz
+tar xvf /mnt/home/"$user1"/yay.tar.gz -C /mnt/home/"$user1"
+arch-chroot /mnt chown "$user1":"$user1" /home/"$user1"/yay.tar.gz /home/"$user1"/yay
+arch-chroot /mnt su - "$user1" -c "cd yay && yes | makepkg -si"
+rm /mnt/home/"$user1"/yay.tar.gz
+rm -rf /mnt/home/"$user1"/yay
+
+
+### --------------------------------------
+#   Desktop Environment/Window Managers
+### --------------------------------------
+
+#Install drivers (These are not pacstrapped, as the boot drive does not give access to the multilib repo
+arch-chroot /mnt su - "$user1" yay -S "$graphicsDriver"
+
+echo What Desktop Environment or Window Managers would you like installed?
+echo Available DE/WMs:
+echo '- (k)DE'
+echo '- (g)NOME'
+echo '- LX(d)E'
+echo '- LXQ(t)'
+echo '- (x)fce'
+echo '- (q)Tile'
+echo '- (i)3'
+echo '- (a)wesome'
+echo '- x(m)onad'
+
 exit 0
