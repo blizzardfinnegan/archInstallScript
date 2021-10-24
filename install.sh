@@ -89,7 +89,7 @@ fi
 ### -----------------------
 #   Set Keyboard Layout
 ### -----------------------
-read -p 'Do you use a non-QWERTY keyboard? (y/N): ' qwertyness
+read -p 'Do you use a non-QWERTY keyboard? \(y/N\): ' qwertyness'
 #This checks with the user for keyboard type, defaulting to QWERTY-US
 if ["$qwertyness" == "y" -o "$qwertyness" == "Y"]
 then
@@ -352,20 +352,28 @@ then
         arch-chroot /mnt su - "$user1" yay -S --noconfirm egl-wayland
     fi
 elif [ "$wmAbbr" == 'g' -o "$wmAbbr" == 'G' ]
+then
     arch-chroot /mnt su - "$user1" yay -S --noconfirm gnome
 elif [ "$wmAbbr" == 'd' -o "$wmAbbr" == 'D' ]
+then
     arch-chroot /mnt su - "$user1" yay -S --noconfirm lxde
 elif [ "$wmAbbr" == 't' -o "$wmAbbr" == 'T' ]
+then
     arch-chroot /mnt su - "$user1" yay -S --noconfirm lxqt xorg-server breeze-icons lxqt-connman-applet sddm 
 elif [ "$wmAbbr" == 'x' -o "$wmAbbr" == 'X' ]
+then
     arch-chroot /mnt su - "$user1" yay -S --noconfirm xfce4 xfce4-goodies
 elif [ "$wmAbbr" == 'q' -o "$wmAbbr" == 'Q' ]
+then
     arch-chroot /mnt su - "$user1" yay -S --noconfirm qtile
 elif [ "$wmAbbr" == 'i' -o "$wmAbbr" == 'I' ]
+then
     arch-chroot /mnt su - "$user1" yay -S --noconfirm i3
 elif [ "$wmAbbr" == 'a' -o "$wmAbbr" == 'A' ]
+then
     arch-chroot /mnt su - "$user1" yay -S --noconfirm awesome
 elif [ "$wmAbbr" == 'm' -o "$wmAbbr" == 'M' ]
+then
     arch-chroot /mnt su - "$user1" yay -S --noconfirm xmonad xmonad-contrib
 fi
 
