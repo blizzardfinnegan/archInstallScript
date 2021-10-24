@@ -328,7 +328,8 @@ rm -rf /mnt/home/"$user1"/yay
 ### --------------------------------------
 
 #Install drivers (These are not pacstrapped, as the boot drive does not give access to the multilib repo
-arch-chroot /mnt su - "$user1" yay -S "$graphicsDriver"
+#Also installs display manager (may be overwritten if installing another DE/WM)
+arch-chroot /mnt su - "$user1" yay -S --noconfirm "$graphicsDriver" lightdm lightdm-gtk-greeter
 
 echo What Desktop Environment or Window Managers would you like installed?
 echo Available DE/WMs:
@@ -341,5 +342,31 @@ echo '- (q)Tile'
 echo '- (i)3'
 echo '- (a)wesome'
 echo '- x(m)onad'
+
+read -p "Enter a letter in parenthesis to install that DE/WM: " wmAbbr
+if [ "$wmAbbr" == 'k' -o "$wmAbbr" == 'K' ]
+then
+    arch-chroot /mnt su - "$user1" yay -S --noconfirm plasma plasma-wayland-session kde-applications
+    if [ "$dGPU" == 'n' -o "$dGPU" == 'N' ]
+    then
+        arch-chroot /mnt su - "$user1" yay -S --noconfirm egl-wayland
+    fi
+elif [ "$wmAbbr" == 'g' -o "$wmAbbr" == 'G' ]
+    arch-chroot /mnt su - "$user1" yay -S --noconfirm gnome
+elif [ "$wmAbbr" == 'd' -o "$wmAbbr" == 'D' ]
+    arch-chroot /mnt su - "$user1" yay -S --noconfirm lxde
+elif [ "$wmAbbr" == 't' -o "$wmAbbr" == 'T' ]
+    arch-chroot /mnt su - "$user1" yay -S --noconfirm lxqt xorg-server breeze-icons lxqt-connman-applet sddm 
+elif [ "$wmAbbr" == 'x' -o "$wmAbbr" == 'X' ]
+    arch-chroot /mnt su - "$user1" yay -S --noconfirm xfce4 xfce4-goodies
+elif [ "$wmAbbr" == 'q' -o "$wmAbbr" == 'Q' ]
+    arch-chroot /mnt su - "$user1" yay -S --noconfirm qtile
+elif [ "$wmAbbr" == 'i' -o "$wmAbbr" == 'I' ]
+    arch-chroot /mnt su - "$user1" yay -S --noconfirm i3
+elif [ "$wmAbbr" == 'a' -o "$wmAbbr" == 'A' ]
+    arch-chroot /mnt su - "$user1" yay -S --noconfirm awesome
+elif [ "$wmAbbr" == 'm' -o "$wmAbbr" == 'M' ]
+    arch-chroot /mnt su - "$user1" yay -S --noconfirm xmonad xmonad-contrib
+fi
 
 exit 0
